@@ -1,0 +1,50 @@
+- name: Base setup for CentOS clients
+  hosts: all
+  become: yes
+
+  tasks:
+  
+    - name: Disable firewalld
+      service:
+        name: firewalld
+        state: stopped
+        enabled: false
+
+    - name: Disable SELinux permanently
+      selinux:
+        state: disabled
+
+    - name: Disable SELinux now
+      shell: setenforce 0
+      when: ansible_selinux.status == "enabled"
+
+    - name: Set timezone
+      timezone:
+        name: Europe/Moscow
+
+    - name: Enable chrony
+      service:
+        name: chronyd
+        state: restarted
+        enabled: true
+
+    - name: Set FQDN as hostname
+      hostname:
+        name: "{{ inventory_hostname }}"
+
+    - name: Update /etc/hosts
+      template:
+        src: hosts.j2
+        dest: /etc/hosts
+        owner: root
+        group: root
+        mode: 0644
+
+    - name: Install FreeIPA client
+      yum:
+        name: freeipa-client
+        state: present
+        update_cache: true
+
+    - name: Enroll client to FreeIPA
+      shell: echo -e "yes\nyes" | ipa-client-install --mkhomedir --domain=OTUS.LAN --server=ipa.otus.lan --no-ntp -p admin -w otus2022
